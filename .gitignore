@@ -1,0 +1,9 @@
+node_modules/
+*.log
+*.txt
+cf_log.txt
+server_log.txt
+server_err.txt
+ngrok_out.txt
+cf_out.txt
+cf_url.txt

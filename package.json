@@ -1,0 +1,16 @@
+{
+  "name": "disability-quiz",
+  "version": "1.0.0",
+  "description": "장애인인식개선 교육 퀴즈 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "express": "^4.18.2",
+    "pptxgenjs": "^4.0.1",
+    "qrcode": "^1.5.3",
+    "ws": "^8.16.0"
+  }
+}

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>장애인인식개선 퀴즈</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #6366f1;
+  --success: #10b981;
+  --danger: #ef4444;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+body {
+  font-family: 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+/* 헤더 */
+.header {
+  background: var(--primary);
+  color: white;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(99,102,241,.35);
+}
+.header-title { font-size: 15px; font-weight: 700; }
+.header-right { font-size: 12px; opacity: .85; display: flex; align-items: center; gap: 6px; }
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #f87171; display: inline-block; }
+.conn-dot.ok { background: #4ade80; }
+
+/* 화면 전환 */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── 대기 화면 ── */
+.waiting-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh; padding: 24px;
+  text-align: center; gap: 16px;
+}
+.waiting-icon { font-size: 64px; animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.waiting-title { font-size: 22px; font-weight: 800; color: var(--primary); }
+.waiting-sub { font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+/* ── 퀴즈 화면 ── */
+.quiz-header {
+  background: white;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.quiz-progress-text { font-size: 13px; color: var(--muted); font-weight: 600; }
+.quiz-progress-bar-bg {
+  height: 4px; background: var(--border);
+  border-radius: 999px; margin-top: 6px; overflow: hidden;
+}
+.quiz-progress-bar-fill {
+  height: 100%; background: var(--primary);
+  border-radius: 999px; transition: width .3s;
+}
+
+.questions-list { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.q-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  border: 2px solid transparent;
+  transition: border-color .2s;
+}
+.q-card.answered { border-color: var(--success); }
+
+.q-card-header {
+  padding: 14px 16px 10px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.q-num { font-size: 12px; font-weight: 700; color: var(--muted); }
+.q-cat {
+  font-size: 11px; font-weight: 700; color: white;
+  padding: 3px 10px; border-radius: 999px;
+}
+.q-type-tag {
+  font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px;
+}
+.tag-ox { background: #ede9fe; color: #7c3aed; }
+.tag-multiple { background: #dbeafe; color: #1d4ed8; }
+.tag-subjective { background: #fef3c7; color: #92400e; }
+.q-check { margin-left: auto; font-size: 18px; }
+
+.q-text {
+  padding: 0 16px 14px;
+  font-size: 16px; font-weight: 700; line-height: 1.55; color: var(--text);
+}
+
+/* OX */
+.ox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+.ox-btn {
+  border: none; border-radius: 12px; padding: 20px 0;
+  font-size: 34px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: transform .1s, opacity .1s;
+  box-shadow: 0 3px 10px rgba(0,0,0,.1);
+}
+.ox-btn span { font-size: 12px; font-weight: 700; }
+.btn-o { background: linear-gradient(135deg,#6ee7b7,#10b981); color: white; }
+.btn-x { background: linear-gradient(135deg,#fca5a5,#ef4444); color: white; }
+.ox-btn:active { transform: scale(.94); }
+.ox-btn.selected { opacity: .65; box-shadow: none; outline: 3px solid #1e293b; }
+.ox-btn.disabled { opacity: .4; pointer-events: none; }
+
+/* 사지선다 */
+.options-list { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.opt-btn {
+  border: 2px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; font-size: 15px; font-weight: 600;
+  background: white; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.opt-btn:active { transform: scale(.98); }
+.opt-num {
+  min-width: 26px; height: 26px; border-radius: 50%;
+  background: var(--border); display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 800;
+  color: var(--muted); flex-shrink: 0;
+}
+.opt-btn.selected { border-color: var(--primary); background: #eef2ff; }
+.opt-btn.selected .opt-num { background: var(--primary); color: white; }
+.opt-btn.disabled { opacity: .45; pointer-events: none; }
+
+/* 주관식 */
+.subj-wrap { padding: 0 16px 16px; }
+.subj-textarea {
+  width: 100%; border: 2px solid var(--border); border-radius: 12px;
+  padding: 14px; font-size: 15px; font-family: inherit;
+  resize: none; outline: none; min-height: 90px;
+  transition: border-color .15s;
+}
+.subj-textarea:focus { border-color: var(--primary); }
+.subj-textarea:disabled { opacity: .5; }
+
+/* 하단 제출 바 */
+.submit-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; border-top: 1px solid var(--border);
+  padding: 12px 16px; z-index: 100;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+}
+.submit-progress { flex: 1; font-size: 13px; font-weight: 700; color: var(--muted); }
+.submit-progress strong { color: var(--primary); }
+.submit-btn {
+  background: var(--primary); color: white;
+  border: none; border-radius: 12px;
+  padding: 13px 24px; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s;
+  white-space: nowrap;
+}
+.submit-btn:disabled { opacity: .35; cursor: not-allowed; }
+.submit-btn:not(:disabled):active { opacity: .8; }
+
+/* ── 제출 완료 화면 ── */
+.done-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh; padding: 24px;
+  text-align: center; gap: 16px;
+}
+.done-icon { font-size: 64px; }
+.done-title { font-size: 22px; font-weight: 800; color: var(--success); }
+.done-sub { font-size: 15px; color: var(--muted); line-height: 1.65; }
+.done-count {
+  background: #d1fae5; border-radius: 14px;
+  padding: 14px 24px; font-size: 16px; font-weight: 700; color: #065f46;
+}
+
+/* ── 결과 / 토론 화면 ── */
+.results-wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.overall-card {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 18px; padding: 24px; color: white; text-align: center;
+}
+.overall-label { font-size: 13px; opacity: .85; margin-bottom: 8px; }
+.overall-pct { font-size: 48px; font-weight: 900; line-height: 1; }
+.overall-gauge-bg {
+  height: 12px; background: rgba(255,255,255,.25);
+  border-radius: 999px; overflow: hidden; margin: 12px auto; max-width: 280px;
+}
+.overall-gauge-fill {
+  height: 100%; background: #34d399;
+  border-radius: 999px; transition: width 1.2s cubic-bezier(.4,0,.2,1);
+}
+.overall-desc { font-size: 14px; font-weight: 700; opacity: .9; }
+
+.result-q-card {
+  background: white; border-radius: 14px;
+  padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  cursor: pointer; transition: box-shadow .15s, transform .1s;
+  border-left: 5px solid transparent;
+}
+.result-q-card:active { transform: scale(.99); }
+.result-q-card.discussing { box-shadow: 0 0 0 3px var(--primary); }
+.result-q-card.rate-high { border-left-color: #10b981; }
+.result-q-card.rate-mid  { border-left-color: #f59e0b; }
+.result-q-card.rate-low  { border-left-color: #ef4444; }
+.result-q-card.rate-na   { border-left-color: #94a3b8; }
+
+.rq-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+.rq-num { font-size: 11px; font-weight: 700; color: var(--muted); }
+.rq-rate { font-size: 15px; font-weight: 900; }
+.rate-high .rq-rate { color: #10b981; }
+.rate-mid .rq-rate  { color: #f59e0b; }
+.rate-low .rq-rate  { color: #ef4444; }
+.rate-na .rq-rate   { color: #94a3b8; }
+.rq-q { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.45; margin-bottom: 6px; }
+.rq-bar-bg { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.rq-bar-fill { height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+/* 토론 카드 */
+.discuss-card {
+  background: white; border-radius: 18px;
+  padding: 22px 18px; box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.discuss-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--primary); color: white;
+  padding: 5px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; margin-bottom: 12px;
+}
+.discuss-q { font-size: 18px; font-weight: 800; line-height: 1.5; margin-bottom: 16px; }
+.discuss-answer {
+  background: #d1fae5; border-radius: 12px; padding: 12px 16px;
+  font-size: 14px; font-weight: 700; color: #065f46; margin-bottom: 12px;
+}
+.discuss-explanation {
+  background: #f8fafc; border-radius: 12px; padding: 14px 16px;
+  font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 16px;
+}
+.discuss-stats-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+.stat-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.stat-label-row { display: flex; justify-content: space-between; }
+.stat-label { font-size: 13px; font-weight: 600; }
+.stat-count { font-size: 12px; color: var(--muted); }
+.stat-bar-bg { height: 9px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 999px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+.correct-fill { background: var(--success); }
+.wrong-fill { background: #94a3b8; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">♿ 장애인인식개선 퀴즈</div>
+  <div class="header-right">
+    <span class="conn-dot" id="connDot"></span>
+    <span id="headerStatus">연결 중...</span>
+  </div>
+</div>
+
+<!-- 대기 -->
+<div class="screen active" id="screen-waiting">
+  <div class="waiting-wrap">
+    <div class="waiting-icon">🎯</div>
+    <div class="waiting-title">퀴즈 준비 중</div>
+    <div class="waiting-sub">진행자가 퀴즈를 시작하면<br>문제가 자동으로 나타납니다.</div>
+  </div>
+</div>
+
+<!-- 퀴즈 풀기 -->
+<div class="screen" id="screen-quiz">
+  <div class="quiz-header">
+    <div>
+      <div class="quiz-progress-text">
+        <strong id="answeredCount">0</strong> / <span id="totalCount">15</span>문제 답변 완료
+      </div>
+      <div class="quiz-progress-bar-bg">
+        <div class="quiz-progress-bar-fill" id="progressBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="questions-list" id="questionsList"></div>
+  <div class="submit-bar">
+    <div class="submit-progress">
+      <strong id="submitAnsweredCount">0</strong>/<span id="submitTotalCount">15</span> 완료
+    </div>
+    <button class="submit-btn" id="submitBtn" disabled onclick="submitAll()">제출하기</button>
+  </div>
+</div>
+
+<!-- 제출 완료 -->
+<div class="screen" id="screen-done">
+  <div class="done-wrap">
+    <div class="done-icon">✅</div>
+    <div class="done-title">제출 완료!</div>
+    <div class="done-count" id="doneCount">현재 0명 제출</div>
+    <div class="done-sub">진행자가 결과를 공개하면<br>화면이 자동으로 바뀝니다.</div>
+  </div>
+</div>
+
+<!-- 전체 결과 -->
+<div class="screen" id="screen-results">
+  <div class="results-wrap">
+    <div class="overall-card">
+      <div class="overall-label">참여자 평균 정답률 (OX·사지선다)</div>
+      <div class="overall-pct" id="overallPct">-</div>
+      <div class="overall-gauge-bg">
+        <div class="overall-gauge-fill" id="overallGauge" style="width:0%"></div>
+      </div>
+      <div class="overall-desc" id="overallDesc"></div>
+    </div>
+    <div id="resultQList"></div>
+  </div>
+</div>
+
+<!-- 토론 중 -->
+<div class="screen" id="screen-discuss">
+  <div class="results-wrap">
+    <div class="discuss-card" id="discussCard"></div>
+  </div>
+</div>
+
+<script>
+const WS_PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${location.host}?role=participant`;
+
+let ws, allQuizzes = [], myAnswers = {}, hasSubmitted = false;
+
+// ── 연결 ──
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('connDot').className = 'conn-dot ok';
+    document.getElementById('headerStatus').textContent = '연결됨';
+  };
+  ws.onclose = () => {
+    document.getElementById('connDot').className = 'conn-dot';
+    document.getElementById('headerStatus').textContent = '재연결 중...';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = ({ data }) => handleMsg(JSON.parse(data));
+}
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'init':
+      if (msg.phase === 'quiz' && msg.quizzes) {
+        if (msg.hasSubmitted) { showScreen('done'); }
+        else { startQuiz(msg.quizzes); }
+      } else if (msg.phase === 'results' && msg.summaryData) {
+        showResults(msg.summaryData);
+      } else if (msg.phase === 'discussing' && msg.summaryData) {
+        showResults(msg.summaryData);
+        if (msg.discussData) showDiscuss(msg.discussData);
+      } else {
+        showScreen('waiting');
+      }
+      break;
+    case 'quizStarted':
+      hasSubmitted = false;
+      myAnswers = {};
+      startQuiz(msg.quizzes);
+      break;
+    case 'submitConfirmed':
+      hasSubmitted = true;
+      showScreen('done');
+      break;
+    case 'submissionUpdate':
+      document.getElementById('doneCount').textContent = `현재 ${msg.count}명 제출`;
+      break;
+    case 'showResults':
+      showResults(msg);
+      break;
+    case 'discussQuestion':
+      showResults(msg); // summaryData도 포함되어 있음
+      showDiscuss(msg);
+      break;
+    case 'reset':
+      hasSubmitted = false;
+      myAnswers = {};
+      allQuizzes = [];
+      showScreen('waiting');
+      break;
+    case 'participantCount':
+      break;
+  }
+}
+
+// ── 퀴즈 시작 ──
+function startQuiz(quizzes) {
+  allQuizzes = quizzes;
+  myAnswers = {};
+  const list = document.getElementById('questionsList');
+  list.innerHTML = '';
+  document.getElementById('totalCount').textContent = quizzes.length;
+  document.getElementById('submitTotalCount').textContent = quizzes.length;
+
+  quizzes.forEach((q, i) => {
+    const card = buildQuestionCard(q, i);
+    list.appendChild(card);
+  });
+
+  updateProgress();
+  showScreen('quiz');
+}
+
+function buildQuestionCard(q, i) {
+  const typeMap = { ox: 'O / X', multiple: '사지선다', subjective: '주관식' };
+  const typeClass = { ox: 'tag-ox', multiple: 'tag-multiple', subjective: 'tag-subjective' };
+
+  const card = document.createElement('div');
+  card.className = 'q-card';
+  card.id = `qcard-${q.id}`;
+
+  // 헤더
+  const hdr = document.createElement('div');
+  hdr.className = 'q-card-header';
+  hdr.innerHTML = `
+    <span class="q-num">Q${i + 1}</span>
+    <span class="q-cat" style="background:${q.categoryColor}">${q.category}</span>
+    <span class="q-type-tag ${typeClass[q.type]}">${typeMap[q.type]}</span>
+    <span class="q-check" id="check-${q.id}"></span>`;
+  card.appendChild(hdr);
+
+  // 질문 텍스트
+  const qtxt = document.createElement('div');
+  qtxt.className = 'q-text';
+  qtxt.textContent = q.question;
+  card.appendChild(qtxt);
+
+  // 답변 영역
+  if (q.type === 'ox') {
+    const grid = document.createElement('div');
+    grid.className = 'ox-grid';
+    grid.innerHTML = `
+      <button class="ox-btn btn-o" id="o-${q.id}" onclick="selectOX(${q.id},'O',this)">⭕<span>맞다</span></button>
+      <button class="ox-btn btn-x" id="x-${q.id}" onclick="selectOX(${q.id},'X',this)">❌<span>틀리다</span></button>`;
+    card.appendChild(grid);
+  } else if (q.type === 'multiple') {
+    const opts = document.createElement('div');
+    opts.className = 'options-list';
+    const nums = ['①','②','③','④'];
+    (q.options || []).forEach((opt, oi) => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.id = `opt-${q.id}-${oi}`;
+      btn.innerHTML = `<span class="opt-num">${nums[oi]}</span><span>${opt}</span>`;
+      btn.onclick = () => selectOption(q.id, opt, oi, btn);
+      opts.appendChild(btn);
+    });
+    card.appendChild(opts);
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className = 'subj-wrap';
+    const ta = document.createElement('textarea');
+    ta.className = 'subj-textarea';
+    ta.id = `subj-${q.id}`;
+    ta.placeholder = '여기에 답을 입력하세요...';
+    ta.rows = 3;
+    ta.oninput = () => {
+      const val = ta.value.trim();
+      if (val) { myAnswers[q.id] = val; markAnswered(q.id, true); }
+      else { delete myAnswers[q.id]; markAnswered(q.id, false); }
+      updateProgress();
+    };
+    wrap.appendChild(ta);
+    card.appendChild(wrap);
+  }
+
+  return card;
+}
+
+function selectOX(qId, val, btn) {
+  if (hasSubmitted) return;
+  myAnswers[qId] = val;
+  document.querySelectorAll(`#o-${qId}, #x-${qId}`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  markAnswered(qId, true);
+  updateProgress();
+}
+
+function selectOption(qId, val, idx, btn) {
+  if (hasSubmitted) return;
+  myAnswers[qId] = val;
+  const q = allQuizzes.find(q => q.id === qId);
+  if (q) q.options.forEach((_, i) => {
+    const b = document.getElementById(`opt-${qId}-${i}`);
+    if (b) b.classList.remove('selected');
+  });
+  btn.classList.add('selected');
+  markAnswered(qId, true);
+  updateProgress();
+}
+
+function markAnswered(qId, done) {
+  const card = document.getElementById(`qcard-${qId}`);
+  const check = document.getElementById(`check-${qId}`);
+  if (card) card.classList.toggle('answered', done);
+  if (check) check.textContent = done ? '✅' : '';
+}
+
+function updateProgress() {
+  const total = allQuizzes.length;
+  const done = Object.keys(myAnswers).length;
+  document.getElementById('answeredCount').textContent = done;
+  document.getElementById('submitAnsweredCount').textContent = done;
+  document.getElementById('progressBar').style.width = `${Math.round(done/total*100)}%`;
+  document.getElementById('submitBtn').disabled = (done < total);
+}
+
+function submitAll() {
+  if (hasSubmitted) return;
+  const total = allQuizzes.length;
+  if (Object.keys(myAnswers).length < total) {
+    alert('모든 문제에 답해주세요!');
+    return;
+  }
+  ws.send(JSON.stringify({ type: 'submitAll', answers: myAnswers }));
+}
+
+// ── 결과 화면 ──
+function showResults(data) {
+  const items = data.items || [];
+  const overall = data.overallRate;
+
+  document.getElementById('overallPct').textContent = overall !== null ? overall + '%' : '-';
+  setTimeout(() => {
+    document.getElementById('overallGauge').style.width = (overall || 0) + '%';
+  }, 100);
+
+  const descs = { high: '🌟 우수한 인식 수준!', mid: '👍 양호한 수준', low: '📚 함께 더 배워봐요', base: '🌱 오늘부터 알아가요' };
+  document.getElementById('overallDesc').textContent =
+    overall >= 80 ? descs.high : overall >= 60 ? descs.mid : overall >= 40 ? descs.low : descs.base;
+
+  const listEl = document.getElementById('resultQList');
+  listEl.innerHTML = '';
+  items.forEach((item, i) => {
+    const isSubj = item.type === 'subjective';
+    const rate = item.correctRate;
+    const rateCls = isSubj ? 'rate-na' : rate >= 70 ? 'rate-high' : rate >= 40 ? 'rate-mid' : 'rate-low';
+    const rateText = isSubj ? '주관식' : rate !== null ? rate + '%' : '-';
+    const barColor = rate >= 70 ? '#10b981' : rate >= 40 ? '#f59e0b' : '#ef4444';
+
+    const card = document.createElement('div');
+    card.className = `result-q-card ${rateCls}`;
+    card.innerHTML = `
+      <div class="rq-header">
+        <span class="rq-num">Q${i+1} · ${item.category}</span>
+        <span class="rq-rate">${rateText}</span>
+      </div>
+      <div class="rq-q">${item.question}</div>
+      ${!isSubj && rate !== null ? `
+      <div class="rq-bar-bg">
+        <div class="rq-bar-fill" data-w="${rate}" style="width:0%; background:${barColor}"></div>
+      </div>` : ''}`;
+    listEl.appendChild(card);
+  });
+
+  setTimeout(() => {
+    listEl.querySelectorAll('[data-w]').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 150);
+
+  showScreen('results');
+}
+
+// ── 토론 화면 ──
+function showDiscuss(data) {
+  const q = data.question;
+  const ans = data.answers || { counts: {}, total: 0 };
+
+  let answerHtml = '';
+  if (q.type !== 'subjective') {
+    answerHtml = `<div class="discuss-answer">✅ 정답: ${q.answer || (q.sampleAnswers||[]).join(' / ')}</div>`;
+  } else {
+    answerHtml = `<div class="discuss-answer">💡 예시 답안: ${(q.sampleAnswers||[]).slice(0,2).join(' / ')}</div>`;
+  }
+
+  let statsHtml = '';
+  if (q.type !== 'subjective' && ans.total > 0) {
+    const items = q.type === 'ox'
+      ? ['O','X'].map(k => ({ label: k==='O'?'⭕ O (맞다)':'❌ X (틀리다)', count: ans.counts[k]||0, correct: k===q.answer }))
+      : (q.options||[]).map((opt,i) => ({ label: `${'①②③④'[i]} ${opt}`, count: ans.counts[opt]||0, correct: i===q.answerIndex }));
+
+    statsHtml = `<div class="discuss-stats-title">📊 참여자 응답 현황 (${ans.total}명)</div>` +
+      items.map(item => {
+        const pct = Math.round(item.count / ans.total * 100);
+        return `<div class="stat-row">
+          <div class="stat-label-row">
+            <span class="stat-label">${item.correct?'✅ ':''}${item.label}</span>
+            <span class="stat-count">${item.count}명 (${pct}%)</span>
+          </div>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill ${item.correct?'correct-fill':'wrong-fill'}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('');
+  } else if (q.type === 'subjective' && ans.responses?.length > 0) {
+    statsHtml = `<div class="discuss-stats-title">📝 참여자 응답 (${ans.responses.length}명)</div>` +
+      ans.responses.slice(0,10).map(r => `<div style="background:#f1f5f9;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:6px;">${r}</div>`).join('');
+  }
+
+  document.getElementById('discussCard').innerHTML = `
+    <div class="discuss-badge">📖 Q${data.index+1} 해설</div>
+    <div class="discuss-q">${q.question}</div>
+    ${answerHtml}
+    <div class="discuss-explanation">${q.explanation || ''}</div>
+    ${statsHtml}`;
+
+  showScreen('discuss');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+connect();
+</script>
+
+<footer style="background:#1e293b;color:#94a3b8;font-size:11px;line-height:1.8;padding:20px 18px 32px;margin-top:8px;">
+  <div style="font-weight:700;color:#cbd5e1;margin-bottom:8px;">📚 참고 자료 및 법령 출처</div>
+  <div>① 보건복지부 「등록장애인 현황 통계」· 국가통계포털(KOSIS)</div>
+  <div>② 「장애인복지법 시행령」 제2조 [별표 1] — 장애의 종류 및 기준 (15가지 유형)</div>
+  <div>③ 「발달장애인 권리보장 및 지원에 관한 법률」 제2조 — 발달장애인의 정의</div>
+  <div>④ 한국장애인고용공단 「장애인 경제활동 실태조사」 — 후천적 장애 비율</div>
+  <div>⑤ 세계보건기구(WHO) 국제기능·장애·건강분류(ICF, 2001) — 사회적 모델</div>
+  <div>⑥ 「장애인차별금지 및 권리구제 등에 관한 법률」 — 정당한 편의 제공 의무</div>
+  <div>⑦ 「장애인고용촉진 및 직업재활법」 제28조 — 장애인 의무고용률 (2025년 기준)</div>
+  <div>⑧ 한국시각장애인연합회 「시각장애인 안내 에티켓」</div>
+  <div>⑨ 「교통약자의 이동편의 증진법」 제21조 — 점자블록 설치 및 보호</div>
+  <div>⑩ 「장애인·노인·임산부 등의 편의증진 보장에 관한 법률」 — 장애인 전용 주차구역</div>
+  <div>⑪ 고용노동부·한국장애인고용공단 「장애인인식개선 교육 표준교재」</div>
+</footer>
+</body>
+</html>
