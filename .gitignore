@@ -1,6 +1,8 @@
 node_modules/
 *.log
 *.txt
+*.pptx
+*.docx
 cf_log.txt
 server_log.txt
 server_err.txt
