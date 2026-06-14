@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>직장내 성희롱 예방교육 퀴즈</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #7c3aed;
+  --success: #0d9488;
+  --danger: #dc2626;
+  --bg: #f5f3ff;
+  --card: #ffffff;
+  --text: #1e1b4b;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+}
+body {
+  font-family: 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.header {
+  background: var(--primary);
+  color: white;
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(124,58,237,.35);
+}
+.header-title { font-size: 15px; font-weight: 700; }
+.header-right { font-size: 12px; opacity: .85; display: flex; align-items: center; gap: 6px; }
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #f87171; display: inline-block; }
+.conn-dot.ok { background: #4ade80; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* 대기 */
+.waiting-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh; padding: 24px;
+  text-align: center; gap: 16px;
+}
+.waiting-icon { font-size: 64px; animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.waiting-title { font-size: 22px; font-weight: 800; color: var(--primary); }
+.waiting-sub { font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+/* 퀴즈 */
+.quiz-header {
+  background: white; padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.quiz-progress-text { font-size: 13px; color: var(--muted); font-weight: 600; }
+.quiz-progress-bar-bg { height: 4px; background: var(--border); border-radius: 999px; margin-top: 6px; overflow: hidden; }
+.quiz-progress-bar-fill { height: 100%; background: var(--primary); border-radius: 999px; transition: width .3s; }
+
+.questions-list { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.q-card {
+  background: white; border-radius: 16px; overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  border: 2px solid transparent; transition: border-color .2s;
+}
+.q-card.answered { border-color: var(--success); }
+
+.q-card-header {
+  padding: 14px 16px 10px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.q-num { font-size: 12px; font-weight: 700; color: var(--muted); }
+.q-cat { font-size: 11px; font-weight: 700; color: white; padding: 3px 10px; border-radius: 999px; }
+.q-type-tag { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px; }
+.tag-ox { background: #ede9fe; color: #6d28d9; }
+.tag-multiple { background: #fce7f3; color: #9d174d; }
+.q-check { margin-left: auto; font-size: 18px; }
+
+.q-text { padding: 0 16px 14px; font-size: 16px; font-weight: 700; line-height: 1.55; color: var(--text); }
+
+/* OX */
+.ox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
+.ox-btn {
+  border: none; border-radius: 12px; padding: 20px 0;
+  font-size: 34px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: transform .1s, opacity .1s;
+  box-shadow: 0 3px 10px rgba(0,0,0,.1);
+}
+.ox-btn span { font-size: 12px; font-weight: 700; }
+.btn-o { background: linear-gradient(135deg,#a78bfa,#7c3aed); color: white; }
+.btn-x { background: linear-gradient(135deg,#fca5a5,#dc2626); color: white; }
+.ox-btn:active { transform: scale(.94); }
+.ox-btn.selected { opacity: .65; box-shadow: none; outline: 3px solid #1e1b4b; }
+
+/* 사지선다 */
+.options-list { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.opt-btn {
+  border: 2px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; font-size: 15px; font-weight: 600;
+  background: white; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.opt-btn:active { transform: scale(.98); }
+.opt-num {
+  min-width: 26px; height: 26px; border-radius: 50%;
+  background: var(--border); display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 800;
+  color: var(--muted); flex-shrink: 0;
+}
+.opt-btn.selected { border-color: var(--primary); background: #f5f3ff; }
+.opt-btn.selected .opt-num { background: var(--primary); color: white; }
+.opt-btn.disabled { opacity: .45; pointer-events: none; }
+
+/* 하단 제출 바 */
+.submit-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; border-top: 1px solid var(--border);
+  padding: 12px 16px; z-index: 100;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.08);
+}
+.submit-progress { flex: 1; font-size: 13px; font-weight: 700; color: var(--muted); }
+.submit-progress strong { color: var(--primary); }
+.submit-btn {
+  background: var(--primary); color: white;
+  border: none; border-radius: 12px;
+  padding: 13px 24px; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity .15s; white-space: nowrap;
+}
+.submit-btn:disabled { opacity: .35; cursor: not-allowed; }
+.submit-btn:not(:disabled):active { opacity: .8; }
+
+/* 제출 완료 */
+.done-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh; padding: 24px;
+  text-align: center; gap: 16px;
+}
+.done-icon { font-size: 64px; }
+.done-title { font-size: 22px; font-weight: 800; color: var(--success); }
+.done-sub { font-size: 15px; color: var(--muted); line-height: 1.65; }
+.done-count { background: #ccfbf1; border-radius: 14px; padding: 14px 24px; font-size: 16px; font-weight: 700; color: #065f46; }
+.my-score-card {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  border-radius: 18px; padding: 22px 28px; color: white;
+  width: 100%; max-width: 320px; text-align: center;
+}
+.my-score-label { font-size: 13px; opacity: .85; margin-bottom: 8px; }
+.my-score-num { font-size: 48px; font-weight: 900; line-height: 1; }
+.my-score-max { font-size: 20px; font-weight: 600; opacity: .75; }
+.my-score-pct { font-size: 16px; font-weight: 700; margin-top: 6px; opacity: .9; }
+.my-score-bar-bg { height: 10px; background: rgba(255,255,255,.25); border-radius: 999px; overflow: hidden; margin: 10px auto 0; max-width: 200px; }
+.my-score-bar-fill { height: 100%; background: #6ee7b7; border-radius: 999px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+
+/* 결과 */
+.results-wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.overall-card {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  border-radius: 18px; padding: 24px; color: white; text-align: center;
+}
+.overall-label { font-size: 13px; opacity: .85; margin-bottom: 8px; }
+.overall-pct { font-size: 48px; font-weight: 900; line-height: 1; }
+.overall-gauge-bg { height: 12px; background: rgba(255,255,255,.25); border-radius: 999px; overflow: hidden; margin: 12px auto; max-width: 280px; }
+.overall-gauge-fill { height: 100%; background: #6ee7b7; border-radius: 999px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+.overall-desc { font-size: 14px; font-weight: 700; opacity: .9; }
+
+.result-q-card {
+  background: white; border-radius: 14px; padding: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  border-left: 5px solid transparent;
+}
+.result-q-card.rate-high { border-left-color: #0d9488; }
+.result-q-card.rate-mid  { border-left-color: #f59e0b; }
+.result-q-card.rate-low  { border-left-color: #dc2626; }
+.result-q-card.rate-na   { border-left-color: #94a3b8; }
+
+.rq-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; flex-wrap: wrap; gap: 6px; }
+.rq-num { font-size: 11px; font-weight: 700; color: var(--muted); }
+.rq-rate { font-size: 15px; font-weight: 900; }
+.rate-high .rq-rate { color: #0d9488; }
+.rate-mid .rq-rate  { color: #f59e0b; }
+.rate-low .rq-rate  { color: #dc2626; }
+.rate-na .rq-rate   { color: #94a3b8; }
+.rq-q { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.45; margin-bottom: 6px; }
+.rq-bar-bg { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.rq-bar-fill { height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+/* 토론 카드 */
+.discuss-card {
+  background: white; border-radius: 18px;
+  padding: 22px 18px; box-shadow: 0 4px 24px rgba(0,0,0,.1);
+}
+.discuss-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--primary); color: white;
+  padding: 5px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; margin-bottom: 12px;
+}
+.discuss-q { font-size: 18px; font-weight: 800; line-height: 1.5; margin-bottom: 16px; }
+.discuss-answer { background: #ccfbf1; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 700; color: #065f46; margin-bottom: 12px; }
+.discuss-explanation { background: #f8fafc; border-radius: 12px; padding: 14px 16px; font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 16px; }
+.discuss-stats-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+.stat-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.stat-label-row { display: flex; justify-content: space-between; }
+.stat-label { font-size: 13px; font-weight: 600; }
+.stat-count { font-size: 12px; color: var(--muted); }
+.stat-bar-bg { height: 9px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 999px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+.correct-fill { background: var(--success); }
+.wrong-fill { background: #94a3b8; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">⚖️ 직장내 성희롱 예방교육 퀴즈</div>
+  <div class="header-right">
+    <span class="conn-dot" id="connDot"></span>
+    <span id="headerStatus">연결 중...</span>
+  </div>
+</div>
+
+<!-- 대기 -->
+<div class="screen active" id="screen-waiting">
+  <div class="waiting-wrap">
+    <div class="waiting-icon">⚖️</div>
+    <div class="waiting-title">퀴즈 준비 중</div>
+    <div class="waiting-sub">진행자가 퀴즈를 시작하면<br>문제가 자동으로 나타납니다.</div>
+  </div>
+</div>
+
+<!-- 퀴즈 풀기 -->
+<div class="screen" id="screen-quiz">
+  <div class="quiz-header">
+    <div>
+      <div class="quiz-progress-text">
+        <strong id="answeredCount">0</strong> / <span id="totalCount">15</span>문제 답변 완료
+      </div>
+      <div class="quiz-progress-bar-bg">
+        <div class="quiz-progress-bar-fill" id="progressBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="questions-list" id="questionsList"></div>
+  <div class="submit-bar">
+    <div class="submit-progress">
+      <strong id="submitAnsweredCount">0</strong>/<span id="submitTotalCount">15</span> 완료
+    </div>
+    <button class="submit-btn" id="submitBtn" disabled onclick="submitAll()">제출하기</button>
+  </div>
+</div>
+
+<!-- 제출 완료 -->
+<div class="screen" id="screen-done">
+  <div class="done-wrap">
+    <div class="done-icon">✅</div>
+    <div class="done-title">제출 완료!</div>
+    <div class="my-score-card" id="myScoreCard" style="display:none">
+      <div class="my-score-label">내 점수 (OX·사지선다)</div>
+      <div>
+        <span class="my-score-num" id="myScoreNum">-</span>
+        <span class="my-score-max" id="myScoreMax">/ 15점</span>
+      </div>
+      <div class="my-score-pct" id="myScorePct"></div>
+      <div class="my-score-bar-bg">
+        <div class="my-score-bar-fill" id="myScoreBar" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="done-count" id="doneCount">현재 0명 제출</div>
+    <div class="done-sub">진행자가 결과를 공개하면<br>화면이 자동으로 바뀝니다.</div>
+  </div>
+</div>
+
+<!-- 전체 결과 -->
+<div class="screen" id="screen-results">
+  <div class="results-wrap">
+    <div class="overall-card">
+      <div class="overall-label">참여자 평균 정답률 (OX·사지선다)</div>
+      <div class="overall-pct" id="overallPct">-</div>
+      <div class="overall-gauge-bg">
+        <div class="overall-gauge-fill" id="overallGauge" style="width:0%"></div>
+      </div>
+      <div class="overall-desc" id="overallDesc"></div>
+    </div>
+    <div id="resultQList"></div>
+  </div>
+</div>
+
+<!-- 토론 중 -->
+<div class="screen" id="screen-discuss">
+  <div class="results-wrap">
+    <div class="discuss-card" id="discussCard"></div>
+  </div>
+</div>
+
+<script>
+const WS_PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${location.host}?quiz=harassment&role=participant`;
+
+let ws, allQuizzes = [], myAnswers = {}, hasSubmitted = false;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('connDot').className = 'conn-dot ok';
+    document.getElementById('headerStatus').textContent = '연결됨';
+  };
+  ws.onclose = () => {
+    document.getElementById('connDot').className = 'conn-dot';
+    document.getElementById('headerStatus').textContent = '재연결 중...';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = ({ data }) => handleMsg(JSON.parse(data));
+}
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'init':
+      if (msg.phase === 'quiz' && msg.quizzes) {
+        if (msg.hasSubmitted) { showScreen('done'); }
+        else { startQuiz(msg.quizzes); }
+      } else if (msg.phase === 'results' && msg.summaryData) {
+        showResults(msg.summaryData);
+      } else if (msg.phase === 'discussing' && msg.summaryData) {
+        showResults(msg.summaryData);
+        if (msg.discussData) showDiscuss(msg.discussData);
+      } else {
+        showScreen('waiting');
+      }
+      break;
+    case 'quizStarted':
+      hasSubmitted = false; myAnswers = {};
+      startQuiz(msg.quizzes);
+      break;
+    case 'submitConfirmed':
+      hasSubmitted = true;
+      showMyScore(msg.score, msg.scoreMax);
+      showScreen('done');
+      break;
+    case 'submissionUpdate':
+      document.getElementById('doneCount').textContent = `현재 ${msg.count}명 제출`;
+      break;
+    case 'showResults':
+      showResults(msg);
+      break;
+    case 'discussQuestion':
+      showResults(msg);
+      showDiscuss(msg);
+      break;
+    case 'reset':
+      hasSubmitted = false; myAnswers = {}; allQuizzes = [];
+      showScreen('waiting');
+      break;
+  }
+}
+
+function startQuiz(quizzes) {
+  allQuizzes = quizzes;
+  myAnswers = {};
+  const list = document.getElementById('questionsList');
+  list.innerHTML = '';
+  document.getElementById('totalCount').textContent = quizzes.length;
+  document.getElementById('submitTotalCount').textContent = quizzes.length;
+  quizzes.forEach((q, i) => list.appendChild(buildQuestionCard(q, i)));
+  updateProgress();
+  showScreen('quiz');
+}
+
+function buildQuestionCard(q, i) {
+  const typeMap = { ox: 'O / X', multiple: '사지선다' };
+  const typeClass = { ox: 'tag-ox', multiple: 'tag-multiple' };
+
+  const card = document.createElement('div');
+  card.className = 'q-card';
+  card.id = `qcard-${q.id}`;
+
+  const hdr = document.createElement('div');
+  hdr.className = 'q-card-header';
+  hdr.innerHTML = `
+    <span class="q-num">Q${i + 1}</span>
+    <span class="q-cat" style="background:${q.categoryColor}">${q.category}</span>
+    <span class="q-type-tag ${typeClass[q.type]}">${typeMap[q.type]}</span>
+    <span class="q-check" id="check-${q.id}"></span>`;
+  card.appendChild(hdr);
+
+  const qtxt = document.createElement('div');
+  qtxt.className = 'q-text';
+  qtxt.textContent = q.question;
+  card.appendChild(qtxt);
+
+  if (q.type === 'ox') {
+    const grid = document.createElement('div');
+    grid.className = 'ox-grid';
+    grid.innerHTML = `
+      <button class="ox-btn btn-o" id="o-${q.id}" onclick="selectOX(${q.id},'O',this)">⭕<span>맞다</span></button>
+      <button class="ox-btn btn-x" id="x-${q.id}" onclick="selectOX(${q.id},'X',this)">❌<span>틀리다</span></button>`;
+    card.appendChild(grid);
+  } else if (q.type === 'multiple') {
+    const opts = document.createElement('div');
+    opts.className = 'options-list';
+    const nums = ['①','②','③','④'];
+    (q.options || []).forEach((opt, oi) => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.id = `opt-${q.id}-${oi}`;
+      btn.innerHTML = `<span class="opt-num">${nums[oi]}</span><span>${opt}</span>`;
+      btn.onclick = () => selectOption(q.id, opt, oi, btn);
+      opts.appendChild(btn);
+    });
+    card.appendChild(opts);
+  }
+
+  return card;
+}
+
+function selectOX(qId, val, btn) {
+  if (hasSubmitted) return;
+  myAnswers[qId] = val;
+  document.querySelectorAll(`#o-${qId}, #x-${qId}`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  markAnswered(qId, true);
+  updateProgress();
+}
+
+function selectOption(qId, val, idx, btn) {
+  if (hasSubmitted) return;
+  myAnswers[qId] = val;
+  const q = allQuizzes.find(q => q.id === qId);
+  if (q) q.options.forEach((_, i) => {
+    const b = document.getElementById(`opt-${qId}-${i}`);
+    if (b) b.classList.remove('selected');
+  });
+  btn.classList.add('selected');
+  markAnswered(qId, true);
+  updateProgress();
+}
+
+function markAnswered(qId, done) {
+  const card = document.getElementById(`qcard-${qId}`);
+  const check = document.getElementById(`check-${qId}`);
+  if (card) card.classList.toggle('answered', done);
+  if (check) check.textContent = done ? '✅' : '';
+}
+
+function updateProgress() {
+  const total = allQuizzes.length;
+  const done = Object.keys(myAnswers).length;
+  document.getElementById('answeredCount').textContent = done;
+  document.getElementById('submitAnsweredCount').textContent = done;
+  document.getElementById('progressBar').style.width = `${Math.round(done/total*100)}%`;
+  document.getElementById('submitBtn').disabled = (done < total);
+}
+
+function submitAll() {
+  if (hasSubmitted) return;
+  if (Object.keys(myAnswers).length < allQuizzes.length) { alert('모든 문제에 답해주세요!'); return; }
+  ws.send(JSON.stringify({ type: 'submitAll', answers: myAnswers }));
+}
+
+function showMyScore(score, scoreMax) {
+  if (score == null || scoreMax == null) return;
+  const pct = Math.round(score / scoreMax * 100);
+  document.getElementById('myScoreNum').textContent = score;
+  document.getElementById('myScoreMax').textContent = `/ ${scoreMax}점`;
+  document.getElementById('myScorePct').textContent = `정답률 ${pct}%`;
+  document.getElementById('myScoreCard').style.display = 'block';
+  setTimeout(() => { document.getElementById('myScoreBar').style.width = pct + '%'; }, 150);
+}
+
+function showResults(data) {
+  const items = data.items || [];
+  const overall = data.overallRate;
+  document.getElementById('overallPct').textContent = overall !== null ? overall + '%' : '-';
+  setTimeout(() => { document.getElementById('overallGauge').style.width = (overall || 0) + '%'; }, 100);
+
+  const descs = { high: '🌟 성희롱 예방 우수 수준!', mid: '👍 양호한 수준', low: '📚 함께 더 배워봐요', base: '🌱 오늘부터 알아가요' };
+  document.getElementById('overallDesc').textContent =
+    overall >= 80 ? descs.high : overall >= 60 ? descs.mid : overall >= 40 ? descs.low : descs.base;
+
+  const listEl = document.getElementById('resultQList');
+  listEl.innerHTML = '';
+  items.forEach((item, i) => {
+    const rate = item.correctRate;
+    const rateCls = rate === null ? 'rate-na' : rate >= 70 ? 'rate-high' : rate >= 40 ? 'rate-mid' : 'rate-low';
+    const rateText = rate !== null ? rate + '%' : '-';
+    const barColor = rate >= 70 ? '#0d9488' : rate >= 40 ? '#f59e0b' : '#dc2626';
+    const card = document.createElement('div');
+    card.className = `result-q-card ${rateCls}`;
+    card.innerHTML = `
+      <div class="rq-header">
+        <span class="rq-num">Q${i+1} · ${item.category}</span>
+        <span class="rq-rate">${rateText}</span>
+      </div>
+      <div class="rq-q">${item.question}</div>
+      ${rate !== null ? `
+      <div class="rq-bar-bg">
+        <div class="rq-bar-fill" data-w="${rate}" style="width:0%; background:${barColor}"></div>
+      </div>` : ''}`;
+    listEl.appendChild(card);
+  });
+  setTimeout(() => { listEl.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; }); }, 150);
+  showScreen('results');
+}
+
+function showDiscuss(data) {
+  const q = data.question;
+  const ans = data.answers || { counts: {}, total: 0 };
+
+  const answerHtml = `<div class="discuss-answer">✅ 정답: ${q.answer}</div>`;
+
+  let statsHtml = '';
+  if (q.type !== 'subjective' && ans.total > 0) {
+    const items = q.type === 'ox'
+      ? ['O','X'].map(k => ({ label: k==='O'?'⭕ O (맞다)':'❌ X (틀리다)', count: ans.counts[k]||0, correct: k===q.answer }))
+      : (q.options||[]).map((opt,i) => ({ label: `${'①②③④'[i]} ${opt}`, count: ans.counts[opt]||0, correct: i===q.answerIndex }));
+
+    statsHtml = `<div class="discuss-stats-title">📊 참여자 응답 현황 (${ans.total}명)</div>` +
+      items.map(item => {
+        const pct = Math.round(item.count / ans.total * 100);
+        return `<div class="stat-row">
+          <div class="stat-label-row">
+            <span class="stat-label">${item.correct?'✅ ':''}${item.label}</span>
+            <span class="stat-count">${item.count}명 (${pct}%)</span>
+          </div>
+          <div class="stat-bar-bg">
+            <div class="stat-bar-fill ${item.correct?'correct-fill':'wrong-fill'}" style="width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('');
+  }
+
+  document.getElementById('discussCard').innerHTML = `
+    <div class="discuss-badge">⚖️ Q${data.index+1} 해설</div>
+    <div class="discuss-q">${q.question}</div>
+    ${answerHtml}
+    <div class="discuss-explanation">${q.explanation || ''}</div>
+    ${statsHtml}`;
+
+  showScreen('discuss');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+connect();
+</script>
+
+<footer style="background:#1e1b4b;color:#94a3b8;font-size:11px;line-height:1.8;padding:20px 18px 32px;margin-top:8px;">
+  <div style="font-weight:700;color:#c4b5fd;margin-bottom:8px;">⚖️ 참고 자료 및 법령 출처</div>
+  <div>① 「남녀고용평등과 일·가정 양립 지원에 관한 법률」 제2조·제12조·제14조·제14조의2·제39조</div>
+  <div>② 「국가인권위원회법」 제2조 — 성희롱의 정의</div>
+  <div>③ 대법원 2007두22498 — 성희롱 판단 기준 (평균인 기준)</div>
+  <div>④ 대법원 2006다78465 — 언어적 성희롱 (외모 반복 언급)</div>
+  <div>⑤ 서울고법 2018나2005678 — SNS 성적 메시지의 직장내 성희롱 해당 여부</div>
+  <div>⑥ 대법원 2018두37262 — 피해자 즉각적 거부 부재의 법적 의미</div>
+  <div>⑦ 고용노동부 「직장 내 성희롱 예방·대응 매뉴얼」 (2023)</div>
+  <div>⑧ 국가인권위원회 「직장내 성희롱 판단 기준」</div>
+</footer>
+</body>
+</html>

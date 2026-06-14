@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리자 — 직장내 성희롱 예방교육 퀴즈</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #7c3aed;
+  --success: #0d9488;
+  --danger: #dc2626;
+  --warning: #f59e0b;
+  --bg: #0f0a1e;
+  --surface: #1a1035;
+  --surface2: #2d1f5e;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #2d1f5e;
+}
+body {
+  font-family: 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.header-title { font-size: 16px; font-weight: 800; margin-right: 4px; }
+.badge { padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.badge-participants { background: var(--surface2); color: #4ade80; }
+.badge-submissions { background: var(--surface2); color: #60a5fa; }
+.badge-phase { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
+.phase-waiting   { background: #1e1b4b; color: #a5b4fc; }
+.phase-quiz      { background: #14532d; color: #86efac; animation: blink 1.5s ease-in-out infinite; }
+.phase-results   { background: #3b2a00; color: #fcd34d; }
+.phase-discussing { background: #2d1f5e; color: #c7d2fe; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.65} }
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #f87171; margin-left: auto; }
+.conn-dot.ok { background: #4ade80; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 57px);
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sidebar-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted); padding: 4px 4px 8px;
+}
+.q-item {
+  background: var(--surface2); border-radius: 10px;
+  padding: 10px 12px; border: 2px solid transparent;
+  cursor: pointer; transition: border-color .15s;
+}
+.q-item:hover { border-color: var(--muted); }
+.q-item.discussing { border-color: var(--primary); }
+.q-item-top { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.q-item-num { font-size: 11px; font-weight: 700; color: var(--muted); }
+.q-type-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.tag-ox { background: #312e81; color: #a5b4fc; }
+.tag-multiple { background: #4a044e; color: #f0abfc; }
+.q-rate-tag { margin-left: auto; font-size: 11px; font-weight: 800; }
+.rate-h { color: #34d399; } .rate-m { color: #fbbf24; } .rate-l { color: #f87171; } .rate-n { color: var(--muted); }
+.q-item-text { font-size: 12px; color: var(--muted); line-height: 1.4;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.main { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+
+/* QR 패널 */
+.qr-panel {
+  background: var(--surface); border-radius: 16px; padding: 22px;
+  display: flex; gap: 24px; align-items: center; flex-wrap: wrap;
+}
+.qr-box { background: white; padding: 12px; border-radius: 12px; flex-shrink: 0; }
+.qr-box img { width: 130px; height: 130px; display: block; }
+.qr-info { flex: 1; }
+.qr-info h3 { font-size: 15px; font-weight: 800; margin-bottom: 8px; }
+.qr-url {
+  font-size: 12px; color: #a78bfa; background: var(--surface2);
+  padding: 8px 12px; border-radius: 8px; word-break: break-all;
+  margin-bottom: 10px; font-family: monospace;
+}
+.qr-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* 컨트롤 바 */
+.control-bar {
+  background: var(--surface); border-radius: 16px; padding: 18px 22px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.control-title { flex: 1; font-size: 15px; font-weight: 700; }
+.btn {
+  padding: 11px 20px; border: none; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity .15s, transform .1s; white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn-danger  { background: var(--danger); color: white; }
+.btn-ghost   { background: var(--surface2); color: var(--text); }
+
+/* 제출 현황 */
+.submission-card {
+  background: var(--surface); border-radius: 16px; padding: 28px; text-align: center;
+}
+.sub-label { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+.sub-nums { font-size: 52px; font-weight: 900; line-height: 1; margin-bottom: 12px; }
+.sub-nums span { font-size: 28px; color: var(--muted); font-weight: 600; }
+.sub-bar-bg { height: 12px; background: var(--surface2); border-radius: 999px; overflow: hidden; margin: 0 auto 12px; max-width: 400px; }
+.sub-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #0d9488); border-radius: 999px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.sub-desc { font-size: 14px; color: var(--muted); }
+
+/* 결과 그리드 */
+.results-card { background: var(--surface); border-radius: 16px; padding: 22px; }
+.overall-strip {
+  background: linear-gradient(135deg, #5b21b6, #7c3aed);
+  border-radius: 12px; padding: 20px 24px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.overall-num { font-size: 48px; font-weight: 900; color: white; line-height: 1; }
+.overall-info { flex: 1; }
+.overall-info p { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 6px; }
+.overall-info strong { font-size: 18px; color: white; font-weight: 800; }
+.overall-gauge-bg { height: 10px; background: rgba(255,255,255,.2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.overall-gauge-fill { height: 100%; background: #6ee7b7; border-radius: 999px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
+
+.q-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.qr-card {
+  background: var(--surface2); border-radius: 12px; padding: 14px 16px;
+  cursor: pointer; border-left: 4px solid transparent;
+  transition: border-color .15s, box-shadow .15s;
+}
+.qr-card:hover { box-shadow: 0 0 0 2px var(--primary); }
+.qr-card.discussing-now { box-shadow: 0 0 0 3px var(--primary); border-left-color: var(--primary); }
+.qr-card.high { border-left-color: #0d9488; }
+.qr-card.mid  { border-left-color: #f59e0b; }
+.qr-card.low  { border-left-color: #dc2626; }
+.qr-card.na   { border-left-color: #475569; }
+.qr-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.qr-card-num { font-size: 11px; font-weight: 700; color: var(--muted); }
+.qr-card-rate { font-size: 15px; font-weight: 900; }
+.high .qr-card-rate { color: #34d399; } .mid .qr-card-rate { color: #fbbf24; }
+.low .qr-card-rate  { color: #f87171; } .na .qr-card-rate  { color: var(--muted); }
+.qr-card-q { font-size: 13px; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
+.qr-card-ans { font-size: 12px; color: #a78bfa; font-weight: 700; margin-bottom: 6px; }
+.mini-bar-bg { height: 5px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.mini-bar-fill { height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+/* 토론 상세 */
+.discuss-detail { background: var(--surface); border-radius: 16px; padding: 24px; }
+.discuss-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--primary); color: white;
+  padding: 5px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; margin-bottom: 14px;
+}
+.discuss-q { font-size: 20px; font-weight: 800; line-height: 1.5; margin-bottom: 16px; }
+.options-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.opt-preview {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border-radius: 10px; padding: 10px 14px;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  border: 2px solid transparent;
+}
+.opt-preview.correct { border-color: var(--success); background: #042f2e; color: #6ee7b7; }
+.opt-num-badge {
+  min-width: 24px; height: 24px; border-radius: 50%;
+  background: var(--border); display: flex; align-items: center;
+  justify-content: center; font-size: 12px; font-weight: 800;
+  color: var(--muted); flex-shrink: 0;
+}
+.opt-preview.correct .opt-num-badge { background: var(--success); color: white; }
+.answer-box { background: #042f2e; border-radius: 10px; padding: 12px 16px; color: #6ee7b7; font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.explain-box { background: var(--surface2); border-radius: 10px; padding: 14px 16px; font-size: 14px; line-height: 1.7; color: var(--text); margin-bottom: 18px; }
+.stats-title { font-size: 14px; font-weight: 700; color: var(--muted); margin-bottom: 12px; }
+.bar-list { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: flex; flex-direction: column; gap: 4px; }
+.bar-meta { display: flex; justify-content: space-between; align-items: center; }
+.bar-label { font-size: 14px; font-weight: 600; }
+.bar-val { font-size: 13px; color: var(--muted); font-weight: 700; }
+.bar-bg { height: 12px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+.fill-correct { background: var(--success); }
+.fill-wrong   { background: #475569; }
+
+/* 개별 점수 */
+.scores-card { background: var(--surface); border-radius: 16px; padding: 22px; }
+.scores-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.scores-title { font-size: 15px; font-weight: 800; }
+.avg-badge {
+  background: linear-gradient(135deg, #5b21b6, #7c3aed);
+  border-radius: 10px; padding: 8px 18px;
+  font-size: 14px; font-weight: 800; color: white;
+  display: flex; align-items: center; gap: 8px;
+}
+.avg-num { font-size: 22px; font-weight: 900; }
+.scores-table { width: 100%; border-collapse: collapse; }
+.scores-table th { font-size: 11px; font-weight: 700; color: var(--muted); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .06em; }
+.scores-table td { padding: 9px 10px; font-size: 14px; border-bottom: 1px solid var(--surface2); }
+.scores-table tr:last-child td { border-bottom: none; }
+.score-rank { font-weight: 800; color: var(--muted); font-size: 13px; }
+.score-name { font-weight: 700; }
+.score-val { font-weight: 900; }
+.score-val.high { color: #34d399; } .score-val.mid { color: #fbbf24; } .score-val.low { color: #f87171; }
+.score-bar-cell { width: 120px; }
+.score-mini-bg { height: 6px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.score-mini-fill { height: 100%; border-radius: 999px; background: var(--primary); transition: width .6s cubic-bezier(.4,0,.2,1); }
+.scores-empty { text-align: center; padding: 28px; color: var(--muted); font-size: 14px; }
+
+.empty-state { background: var(--surface); border-radius: 16px; padding: 60px 24px; text-align: center; }
+.empty-icon { font-size: 52px; margin-bottom: 16px; }
+.empty-text { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.empty-sub { font-size: 14px; color: var(--muted); }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🖥️ 관리자 — 직장내 성희롱 예방교육</div>
+  <div class="badge badge-participants">👥 <span id="pCount">0</span>명 접속</div>
+  <div class="badge badge-submissions">📝 <span id="sCount">0</span>명 제출</div>
+  <span class="badge-phase phase-waiting" id="phaseBadge">대기 중</span>
+  <div class="conn-dot" id="connDot"></div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-title">문제 목록</div>
+    <div id="qList"></div>
+  </div>
+
+  <div class="main" id="mainArea">
+    <div class="qr-panel">
+      <div class="qr-box"><img id="qrImg" src="" alt="QR" width="130" height="130"></div>
+      <div class="qr-info">
+        <h3>📱 교육생 접속용 QR / URL</h3>
+        <div class="qr-url" id="participantUrl" style="font-size:13px;word-break:break-all;">URL 로딩 중...</div>
+        <div id="qrNetworkBadge" style="font-size:12px;font-weight:700;margin-top:6px;">🌐 URL 확인 중...</div>
+        <div class="qr-desc" style="margin-top:4px;">QR 스캔 또는 위 URL → 교육생 문제 화면<br>익명 참여 · 개인정보 수집 없음</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #2d1f5e;">
+          <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:4px;">🖥️ 관리자 화면 URL (이 화면 주소)</div>
+          <div id="adminUrl" style="font-size:11px;color:#a78bfa;background:#1a1035;padding:6px 10px;border-radius:6px;word-break:break-all;font-family:monospace;">로딩 중...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-bar">
+      <div class="control-title" id="ctrlTitle">퀴즈를 시작하세요</div>
+      <button class="btn btn-ghost" onclick="resetQuiz()">초기화</button>
+      <button class="btn btn-success" id="btnResults" onclick="showResults()" disabled>📊 결과 공개</button>
+      <button class="btn btn-primary" id="btnStart" onclick="startQuiz()">▶ 퀴즈 시작</button>
+    </div>
+
+    <div id="dynamicArea">
+      <div class="empty-state">
+        <div class="empty-icon">⚖️</div>
+        <div class="empty-text">퀴즈 시작 준비 완료</div>
+        <div class="empty-sub">"퀴즈 시작" 버튼을 누르면 참여자 화면에 15문제가 한번에 표시됩니다.</div>
+      </div>
+    </div>
+
+    <div class="scores-card" id="scoresPanel" style="display:none">
+      <div class="scores-header">
+        <div class="scores-title">📋 참여자 개별 점수</div>
+        <div class="avg-badge">
+          평균 <span class="avg-num" id="avgScore">-</span>점
+          <span style="font-size:12px;opacity:.75" id="avgScoreMax">/ 15점</span>
+        </div>
+      </div>
+      <table class="scores-table">
+        <thead>
+          <tr>
+            <th style="width:36px">순위</th>
+            <th>이름</th>
+            <th style="width:80px">점수</th>
+            <th class="score-bar-cell">그래프</th>
+          </tr>
+        </thead>
+        <tbody id="scoresBody">
+          <tr><td colspan="4" class="scores-empty">아직 제출한 참여자가 없습니다</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const WS_PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${location.host}?quiz=harassment&role=admin`;
+
+let ws, allQuizzes = [], phase = 'waiting', discussingIdx = -1, summaryItems = [], scoreMax = 15;
+
+function connect() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => { document.getElementById('connDot').className = 'conn-dot ok'; };
+  ws.onclose = () => { document.getElementById('connDot').className = 'conn-dot'; setTimeout(connect, 2000); };
+  ws.onmessage = ({ data }) => handleMsg(JSON.parse(data));
+}
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'adminInit':
+      allQuizzes = msg.quizzes || [];
+      phase = msg.phase;
+      discussingIdx = msg.discussingIndex ?? -1;
+      scoreMax = msg.scoreMax || 15;
+      document.getElementById('pCount').textContent = msg.participantCount || 0;
+      document.getElementById('sCount').textContent = msg.submissionCount || 0;
+      renderSidebar();
+      updatePhaseUI();
+      if (phase === 'waiting') renderEmpty();
+      else if (phase === 'quiz') renderSubmissionCard(msg.submissionCount, msg.participantCount);
+      else if (phase === 'results' || phase === 'discussing') {
+        if (msg.summaryData) renderResultsGrid(msg.summaryData);
+        if (phase === 'discussing' && discussingIdx >= 0) renderDiscuss(discussingIdx);
+      }
+      renderScoresPanel(msg.scores || [], msg.avgScore, msg.scoreMax || 15);
+      break;
+    case 'quizStarted':
+      phase = 'quiz';
+      document.getElementById('sCount').textContent = '0';
+      updatePhaseUI();
+      renderSubmissionCard(0, parseInt(document.getElementById('pCount').textContent));
+      break;
+    case 'submissionUpdate':
+      document.getElementById('sCount').textContent = msg.count;
+      updateSubmissionCard(msg.count, msg.total);
+      renderScoresPanel(msg.scores || [], msg.avgScore, scoreMax);
+      break;
+    case 'showResults':
+      phase = 'results'; discussingIdx = -1;
+      updatePhaseUI(); renderResultsGrid(msg); renderSidebar();
+      break;
+    case 'discussQuestion':
+      phase = 'discussing'; discussingIdx = msg.index;
+      updatePhaseUI(); renderResultsGrid(msg); renderDiscuss(msg.index); renderSidebar();
+      break;
+    case 'reset':
+      phase = 'waiting'; discussingIdx = -1; summaryItems = [];
+      document.getElementById('sCount').textContent = '0';
+      updatePhaseUI(); renderSidebar(); renderEmpty();
+      renderScoresPanel([], null, scoreMax);
+      break;
+    case 'participantCount':
+      document.getElementById('pCount').textContent = msg.count;
+      break;
+  }
+}
+
+function renderSidebar() {
+  const list = document.getElementById('qList');
+  list.innerHTML = '';
+  const typeMap = { ox: 'OX', multiple: '사지선다' };
+  const typeClass = { ox: 'tag-ox', multiple: 'tag-multiple' };
+
+  allQuizzes.forEach((q, i) => {
+    const item = summaryItems.find(s => s.id === q.id);
+    const rate = item?.correctRate ?? null;
+    const rCls = rate === null ? 'rate-n' : rate >= 70 ? 'rate-h' : rate >= 40 ? 'rate-m' : 'rate-l';
+    const rText = rate !== null ? rate + '%' : '-';
+
+    const div = document.createElement('div');
+    div.className = 'q-item' + (i === discussingIdx ? ' discussing' : '');
+    div.innerHTML = `
+      <div class="q-item-top">
+        <span class="q-item-num">Q${i+1}</span>
+        <span class="q-type-tag ${typeClass[q.type]}">${typeMap[q.type]}</span>
+        <span class="q-rate-tag ${rCls}">${rText}</span>
+      </div>
+      <div class="q-item-text">${q.question}</div>`;
+    if (phase === 'results' || phase === 'discussing') {
+      div.style.cursor = 'pointer';
+      div.onclick = () => clickDiscuss(i);
+    }
+    list.appendChild(div);
+  });
+}
+
+function updatePhaseUI() {
+  const phaseMap = {
+    waiting:    { label: '대기 중',   cls: 'phase-waiting' },
+    quiz:       { label: '진행 중',   cls: 'phase-quiz' },
+    results:    { label: '결과 공개', cls: 'phase-results' },
+    discussing: { label: '해설 중',   cls: 'phase-discussing' },
+  };
+  const p = phaseMap[phase] || phaseMap.waiting;
+  const badge = document.getElementById('phaseBadge');
+  badge.textContent = p.label;
+  badge.className = 'badge-phase ' + p.cls;
+
+  const btnStart = document.getElementById('btnStart');
+  const btnResults = document.getElementById('btnResults');
+  const ctrlTitle = document.getElementById('ctrlTitle');
+
+  if (phase === 'waiting') {
+    btnStart.textContent = '▶ 퀴즈 시작'; btnStart.disabled = false;
+    btnResults.disabled = true; ctrlTitle.textContent = '퀴즈를 시작하세요';
+  } else if (phase === 'quiz') {
+    btnStart.textContent = '진행 중...'; btnStart.disabled = true;
+    btnResults.disabled = false; ctrlTitle.textContent = '참여자 제출 대기 중';
+  } else {
+    btnStart.textContent = '진행 완료'; btnStart.disabled = true;
+    btnResults.disabled = true;
+    ctrlTitle.textContent = phase === 'discussing' ? `Q${discussingIdx+1} 해설 중` : '결과 공개 중 — 문제를 클릭해 해설하세요';
+  }
+}
+
+function renderEmpty() {
+  document.getElementById('dynamicArea').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">⚖️</div>
+      <div class="empty-text">퀴즈 시작 준비 완료</div>
+      <div class="empty-sub">"퀴즈 시작" 버튼을 누르면 참여자 화면에 15문제가 한번에 표시됩니다.</div>
+    </div>`;
+}
+
+function renderSubmissionCard(count, total) {
+  document.getElementById('dynamicArea').innerHTML = `
+    <div class="submission-card">
+      <div class="sub-label">제출 완료한 참여자</div>
+      <div class="sub-nums" id="subNums">${count}<span> / ${total}</span></div>
+      <div class="sub-bar-bg"><div class="sub-bar-fill" id="subBar" style="width:0%"></div></div>
+      <div class="sub-desc" id="subDesc">참여자들이 문제를 풀고 있습니다...</div>
+    </div>`;
+  updateSubmissionCard(count, total);
+}
+
+function updateSubmissionCard(count, total) {
+  const numsEl = document.getElementById('subNums');
+  const barEl  = document.getElementById('subBar');
+  const descEl = document.getElementById('subDesc');
+  if (!numsEl) return;
+  numsEl.innerHTML = `${count}<span> / ${total || '?'}</span>`;
+  const pct = total > 0 ? Math.round(count/total*100) : 0;
+  barEl.style.width = pct + '%';
+  descEl.textContent = count === 0 ? '참여자들이 문제를 풀고 있습니다...' : `${pct}% 제출 완료`;
+}
+
+function renderResultsGrid(data) {
+  summaryItems = data.items || [];
+  const overall = data.overallRate;
+
+  const descText = overall === null ? '-'
+    : overall >= 80 ? '🌟 우수한 성희롱 예방 인식'
+    : overall >= 60 ? '👍 양호한 수준'
+    : overall >= 40 ? '📚 함께 더 배워봐요'
+    : '🌱 오늘부터 알아가요';
+
+  const qCardsHtml = summaryItems.map((item, i) => {
+    const rate = item.correctRate;
+    const cls = rate === null ? 'na' : rate >= 70 ? 'high' : rate >= 40 ? 'mid' : 'low';
+    const rText = rate !== null ? rate + '%' : '-';
+    const barColor = rate >= 70 ? '#0d9488' : rate >= 40 ? '#f59e0b' : '#dc2626';
+    const isNow = i === discussingIdx;
+    const ans = `✅ ${item.correctAnswer}`;
+    return `
+      <div class="qr-card ${cls}${isNow?' discussing-now':''}" onclick="clickDiscuss(${i})">
+        <div class="qr-card-header">
+          <span class="qr-card-num">Q${i+1} · ${item.category}</span>
+          <span class="qr-card-rate">${rText}</span>
+        </div>
+        <div class="qr-card-q">${item.question}</div>
+        <div class="qr-card-ans">${ans}</div>
+        ${rate !== null ? `
+        <div class="mini-bar-bg">
+          <div class="mini-bar-fill" data-w="${rate}" style="width:0%; background:${barColor}; height:100%; border-radius:999px; transition:width 1s cubic-bezier(.4,0,.2,1)"></div>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+
+  document.getElementById('dynamicArea').innerHTML = `
+    <div class="results-card">
+      <div class="overall-strip">
+        <div class="overall-num">${overall !== null ? overall + '%' : '-'}</div>
+        <div class="overall-info">
+          <p>전체 평균 정답률 (OX·사지선다)</p>
+          <strong>${descText}</strong>
+          <div class="overall-gauge-bg">
+            <div class="overall-gauge-fill" data-w="${overall||0}" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;font-weight:700;">
+        문제 카드를 클릭하면 해설 화면이 참여자에게 전송됩니다 ↓
+      </div>
+      <div class="q-grid">${qCardsHtml}</div>
+    </div>`;
+
+  setTimeout(() => {
+    document.querySelectorAll('[data-w]').forEach(el => { el.style.width = el.dataset.w + '%'; });
+  }, 100);
+
+  renderSidebar();
+}
+
+function renderDiscuss(idx) {
+  const q = allQuizzes[idx];
+  if (!q) return;
+  const item = summaryItems[idx] || {};
+  const ans = item.answers || { counts: {}, total: 0, responses: [] };
+
+  let optsHtml = '';
+  if (q.type === 'multiple' && q.options) {
+    const nums = ['①','②','③','④'];
+    optsHtml = `<div class="options-preview">
+      ${q.options.map((opt, i) => `
+        <div class="opt-preview ${i === q.answerIndex ? 'correct' : ''}">
+          <span class="opt-num-badge">${nums[i]}</span>${opt}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  const answerStr = `✅ 정답: ${q.answer}`;
+
+  let statsHtml = '';
+  if (ans.total > 0) {
+    const items = q.type === 'ox'
+      ? ['O','X'].map(k => ({ label: k==='O'?'⭕ O (맞다)':'❌ X (틀리다)', count: ans.counts[k]||0, correct: k===q.answer }))
+      : (q.options||[]).map((opt,i) => ({ label:`${'①②③④'[i]} ${opt}`, count: ans.counts[opt]||0, correct: i===q.answerIndex }));
+
+    statsHtml = `
+      <div class="stats-title">📊 응답 결과 (총 ${ans.total}명)</div>
+      <div class="bar-list">
+        ${items.map(item => {
+          const pct = Math.round(item.count / ans.total * 100);
+          return `<div class="bar-row">
+            <div class="bar-meta">
+              <span class="bar-label">${item.correct?'✅ ':''}${item.label}</span>
+              <span class="bar-val">${item.count}명 · ${pct}%</span>
+            </div>
+            <div class="bar-bg">
+              <div class="bar-fill ${item.correct?'fill-correct':'fill-wrong'}" style="width:${pct}%"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  const area = document.getElementById('dynamicArea');
+  let existing = area.querySelector('.discuss-detail');
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.className = 'discuss-detail';
+    area.appendChild(existing);
+  }
+  existing.innerHTML = `
+    <div class="discuss-badge">⚖️ Q${idx+1} / ${allQuizzes.length} 해설</div>
+    <div class="discuss-q">${q.question}</div>
+    ${optsHtml}
+    <div class="answer-box">${answerStr}</div>
+    <div class="explain-box">${q.explanation || ''}</div>
+    ${statsHtml}`;
+
+  setTimeout(() => existing.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  discussingIdx = idx;
+  renderSidebar();
+
+  document.querySelectorAll('.qr-card').forEach((el, i) => {
+    el.classList.toggle('discussing-now', i === idx);
+  });
+  document.querySelectorAll('.q-item').forEach((el, i) => {
+    el.classList.toggle('discussing', i === idx);
+  });
+}
+
+function renderScoresPanel(scores, avg, max) {
+  const panel = document.getElementById('scoresPanel');
+  const body = document.getElementById('scoresBody');
+  const avgEl = document.getElementById('avgScore');
+  const avgMaxEl = document.getElementById('avgScoreMax');
+
+  panel.style.display = 'block';
+  avgMaxEl.textContent = `/ ${max || 15}점`;
+  avgEl.textContent = avg != null ? avg : '-';
+
+  if (!scores || scores.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="scores-empty">아직 제출한 참여자가 없습니다</td></tr>';
+    return;
+  }
+
+  const sorted = [...scores].sort((a, b) => b.score - a.score);
+  body.innerHTML = sorted.map((s, i) => {
+    const pct = Math.round(s.score / (s.scoreMax || max || 15) * 100);
+    const valCls = pct >= 70 ? 'high' : pct >= 40 ? 'mid' : 'low';
+    return `
+      <tr>
+        <td class="score-rank">${i + 1}</td>
+        <td class="score-name">${escHtml(s.name)}</td>
+        <td><span class="score-val ${valCls}">${s.score}</span><span style="font-size:12px;color:var(--muted)"> / ${s.scoreMax || max}</span></td>
+        <td class="score-bar-cell">
+          <div class="score-mini-bg"><div class="score-mini-fill" style="width:${pct}%"></div></div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function startQuiz() { ws.send(JSON.stringify({ type: 'startQuiz' })); }
+function showResults() { ws.send(JSON.stringify({ type: 'showResults' })); }
+function clickDiscuss(idx) { ws.send(JSON.stringify({ type: 'discussQuestion', index: idx })); }
+function resetQuiz() {
+  if (!confirm('퀴즈를 초기화하겠습니까? 모든 응답 데이터가 삭제됩니다.')) return;
+  ws.send(JSON.stringify({ type: 'reset' }));
+}
+
+async function loadURL() {
+  try {
+    const data = await fetch('/api/publicurl').then(r => r.json());
+    const base = data.url.replace(/\/$/, '');
+    const participantUrl = base + '/harassment/';
+    const adminUrl = base + '/harassment/admin.html';
+    document.getElementById('participantUrl').textContent = participantUrl;
+    document.getElementById('qrImg').src = `/qr.svg?url=${encodeURIComponent(participantUrl)}`;
+    document.getElementById('adminUrl').textContent = adminUrl;
+    document.getElementById('qrNetworkBadge').textContent = '🌐 인터넷 어디서나 접속 가능';
+    document.getElementById('qrNetworkBadge').style.color = '#34d399';
+  } catch {
+    const base = location.origin;
+    document.getElementById('participantUrl').textContent = base + '/harassment/';
+    document.getElementById('qrImg').src = `/qr.svg?url=${encodeURIComponent(base + '/harassment/')}`;
+    document.getElementById('adminUrl').textContent = base + '/harassment/admin.html';
+  }
+}
+
+connect();
+loadURL();
+</script>
+
+<div style="background:#0f0a1e;border-top:1px solid #2d1f5e;color:#475569;font-size:11px;line-height:1.9;padding:16px 24px;flex-shrink:0;">
+  <span style="color:#7c3aed;font-weight:700;margin-right:8px;">⚖️ 참고 법령 출처</span>
+  ① 「남녀고용평등과 일·가정 양립 지원에 관한 법률」 제2조·제12조·제14조·제14조의2·제39조 &nbsp;|&nbsp;
+  ② 대법원 2007두22498 — 성희롱 판단 기준 &nbsp;|&nbsp;
+  ③ 대법원 2006다78465 — 언어적 성희롱 &nbsp;|&nbsp;
+  ④ 서울고법 2018나2005678 — SNS 성적 메시지 &nbsp;|&nbsp;
+  ⑤ 대법원 2018두37262 — 피해자 즉각 거부 부재 &nbsp;|&nbsp;
+  ⑥ 고용노동부 「직장 내 성희롱 예방·대응 매뉴얼」(2023) &nbsp;|&nbsp;
+  ⑦ 국가인권위원회 「직장내 성희롱 판단 기준」
+</div>
+</body>
+</html>
