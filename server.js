@@ -10,6 +10,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
+app.use((req, res, next) => { res.setHeader('ngrok-skip-browser-warning', 'true'); next(); });
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
@@ -22,9 +23,11 @@ const quizzes = [
     id: 1,
     category: '장애인 비율',
     categoryColor: '#6366f1',
-    type: 'subjective',
-    question: '대한민국 등록 장애인 수는 전체 인구의 약 몇 %일까요? 숫자로 적어보세요.',
-    sampleAnswers: ['약 5%', '5%', '5.1%', '약 264만 명 (5.1%)'],
+    type: 'multiple',
+    question: '대한민국 등록 장애인 수는 전체 인구의 약 몇 %일까요?',
+    options: ['약 3%', '약 5%', '약 10%', '약 20%'],
+    answer: '약 5%',
+    answerIndex: 1,
     explanation: '대한민국 등록 장애인은 약 264만 명으로 전체 인구의 약 5.1%입니다. 100명 중 5명꼴이에요. 생각보다 많죠?',
   },
 
@@ -53,9 +56,11 @@ const quizzes = [
     id: 4,
     category: '장애 종류',
     categoryColor: '#0ea5e9',
-    type: 'subjective',
+    type: 'multiple',
     question: '대한민국 등록 장애인 중 가장 많은 장애 유형은 무엇인가요?',
-    sampleAnswers: ['지체장애', '지체장애 (약 46%)'],
+    options: ['시각장애', '청각장애', '지체장애', '지적장애'],
+    answer: '지체장애',
+    answerIndex: 2,
     explanation: '지체장애인이 전체 등록 장애인의 약 46%로 가장 많습니다. 팔·다리·척추 등 신체 기능 저하가 모두 포함됩니다.',
   },
   {
@@ -148,16 +153,17 @@ const quizzes = [
     id: 13,
     category: '장애인 배려',
     categoryColor: '#10b981',
-    type: 'subjective',
-    question: '청각장애인과 소통할 때 도움이 되는 방법을 두 가지 이상 써보세요.',
-    sampleAnswers: [
-      '필담(글씨로 소통)',
-      '수어(수화) 사용',
-      '입 모양 크게·천천히 말하기',
-      '문자 메시지 활용',
-      '메모장·그림판 활용',
+    type: 'multiple',
+    question: '청각장애인이 잘 못 알아들을 때, 올바른 대처 방법은?',
+    options: [
+      '목소리를 더 높이고 같은 말을 천천히 크게 반복해서 말한다',
+      '단어나 표현을 바꾸어 다시 설명하거나 스마트폰 메모장으로 필담을 시도한다',
+      '"별거 아닌 얘기예요, 나중에 얘기해요"라며 대화를 마무리한다',
+      '옆에 있는 가족이나 동행인에게 "이분께 이렇게 전해 주세요"라고 부탁한다',
     ],
-    explanation: '필담, 수어, 천천히 입 모양 크게 말하기, 문자 메시지, 메모장 활용 등이 있습니다. 말하기 전 먼저 시선을 맞추는 것도 중요합니다.',
+    answer: '단어나 표현을 바꾸어 다시 설명하거나 스마트폰 메모장으로 필담을 시도한다',
+    answerIndex: 1,
+    explanation: '보청기를 착용한 경우 과도하게 큰 소리는 찢어지듯 왜곡되어 통증을 줄 수 있습니다. "별거 아니에요"라며 포기하거나 가족에게 대리 질문하는 것도 당사자에게 소외감을 줍니다. 못 알아들었을 때는 표현을 바꾸거나 필담을 시도하는 것이 가장 올바른 방법입니다.',
   },
   {
     id: 14,
@@ -207,6 +213,33 @@ const participantClients = new Set();
 const adminClients = new Set();
 const participantSubmitted = new Set(); // ws._id 기록 (중복 제출 방지)
 
+// 개별 점수 추적
+const participantNames = {};  // ws._id → name
+const participantScores = {}; // ws._id → { name, score, scoreMax }
+
+const SCORE_MAX = quizzes.filter(q => q.type !== 'subjective').length; // 12
+
+function calculateScore(answers) {
+  let correct = 0;
+  quizzes.forEach(q => {
+    if (q.type === 'subjective') return;
+    const submitted = String(answers[q.id] ?? '').trim();
+    if (submitted === q.answer) correct++;
+  });
+  return correct;
+}
+
+function getAllScores() {
+  return Object.values(participantScores);
+}
+
+function getAvgScore() {
+  const scores = getAllScores();
+  if (scores.length === 0) return null;
+  const sum = scores.reduce((a, b) => a + b.score, 0);
+  return Math.round((sum / scores.length) * 10) / 10;
+}
+
 let socketIdCounter = 0;
 
 // ─── WebSocket ──────────────────────────────────────────────────────────────
@@ -242,6 +275,7 @@ wss.on('connection', (ws, req) => {
       broadcastParticipantCount();
     }
   });
+
 });
 
 function sendParticipantInit(ws) {
@@ -273,6 +307,9 @@ function sendAdminInit(ws) {
     quizzes: quizzes.map(q => ({ ...q })), // 관리자는 정답 포함 전체 데이터
     answers: state.answers,
     summaryData: (state.phase === 'results' || state.phase === 'discussing') ? buildSummaryData() : null,
+    scores: getAllScores(),
+    scoreMax: SCORE_MAX,
+    avgScore: getAvgScore(),
   }));
 }
 
@@ -306,6 +343,8 @@ function handleAdmin(ws, msg) {
       state.discussingIndex = -1;
       participantSubmitted.clear();
       resetAnswers();
+      Object.keys(participantNames).forEach(k => delete participantNames[k]);
+      Object.keys(participantScores).forEach(k => delete participantScores[k]);
       broadcast({ type: 'reset' }, 'all');
       break;
     }
@@ -320,6 +359,8 @@ function handleParticipant(ws, msg) {
   participantSubmitted.add(ws._id);
   const { answers } = msg;
 
+  participantNames[ws._id] = `${state.submissionCount + 1}번`;
+
   Object.entries(answers || {}).forEach(([qId, answer]) => {
     const data = state.answers[parseInt(qId)];
     if (!data) return;
@@ -329,9 +370,23 @@ function handleParticipant(ws, msg) {
     data.total++;
   });
 
+  // 개인 점수 계산
+  const score = calculateScore(answers || {});
+  participantScores[ws._id] = {
+    name: participantNames[ws._id],
+    score,
+    scoreMax: SCORE_MAX,
+  };
+
   state.submissionCount++;
-  ws.send(JSON.stringify({ type: 'submitConfirmed' }));
-  broadcast({ type: 'submissionUpdate', count: state.submissionCount, total: state.participantCount }, 'admin');
+  ws.send(JSON.stringify({ type: 'submitConfirmed', score, scoreMax: SCORE_MAX }));
+  broadcast({
+    type: 'submissionUpdate',
+    count: state.submissionCount,
+    total: state.participantCount,
+    scores: getAllScores(),
+    avgScore: getAvgScore(),
+  }, 'admin');
 }
 
 function sanitize(q) {
@@ -361,7 +416,8 @@ function buildSummaryData() {
     } else if (q.type === 'multiple') {
       correctCount = ans.counts[q.answer] || 0;
     }
-    const correctRate = ans.total > 0 ? Math.round((correctCount / ans.total) * 100) : null;
+    const correctRate = q.type === 'subjective' ? null
+      : ans.total > 0 ? Math.round((correctCount / ans.total) * 100) : null;
     return {
       id: q.id,
       category: q.category,
@@ -435,6 +491,14 @@ app.get('/qr.svg', async (req, res) => {
 
 app.get('/api/serverinfo', (req, res) => {
   res.json({ port: PORT, localIP: getLocalIP() });
+});
+
+app.get('/api/publicurl', (req, res) => {
+  // 인터넷 배포 환경(Railway 등)에서는 HOST 환경변수 사용, 없으면 로컬 IP
+  const publicUrl = process.env.PUBLIC_URL
+    ? process.env.PUBLIC_URL
+    : `http://${getLocalIP()}:${PORT}`;
+  res.json({ url: publicUrl });
 });
 
 function getLocalIP() {

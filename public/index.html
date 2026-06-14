@@ -56,7 +56,6 @@ body {
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
 .waiting-title { font-size: 22px; font-weight: 800; color: var(--primary); }
 .waiting-sub { font-size: 15px; color: var(--muted); line-height: 1.6; }
-
 /* ── 퀴즈 화면 ── */
 .quiz-header {
   background: white;
@@ -188,6 +187,20 @@ body {
   background: #d1fae5; border-radius: 14px;
   padding: 14px 24px; font-size: 16px; font-weight: 700; color: #065f46;
 }
+.my-score-card {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 18px; padding: 22px 28px; color: white;
+  width: 100%; max-width: 320px; text-align: center;
+}
+.my-score-label { font-size: 13px; opacity: .85; margin-bottom: 8px; }
+.my-score-num { font-size: 48px; font-weight: 900; line-height: 1; }
+.my-score-max { font-size: 20px; font-weight: 600; opacity: .75; }
+.my-score-pct { font-size: 16px; font-weight: 700; margin-top: 6px; opacity: .9; }
+.my-score-bar-bg {
+  height: 10px; background: rgba(255,255,255,.25);
+  border-radius: 999px; overflow: hidden; margin: 10px auto 0; max-width: 200px;
+}
+.my-score-bar-fill { height: 100%; background: #34d399; border-radius: 999px; transition: width 1.2s cubic-bezier(.4,0,.2,1); }
 
 /* ── 결과 / 토론 화면 ── */
 .results-wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -308,6 +321,17 @@ body {
   <div class="done-wrap">
     <div class="done-icon">✅</div>
     <div class="done-title">제출 완료!</div>
+    <div class="my-score-card" id="myScoreCard" style="display:none">
+      <div class="my-score-label">내 점수 (OX·사지선다)</div>
+      <div>
+        <span class="my-score-num" id="myScoreNum">-</span>
+        <span class="my-score-max" id="myScoreMax">/ 12점</span>
+      </div>
+      <div class="my-score-pct" id="myScorePct"></div>
+      <div class="my-score-bar-bg">
+        <div class="my-score-bar-fill" id="myScoreBar" style="width:0%"></div>
+      </div>
+    </div>
     <div class="done-count" id="doneCount">현재 0명 제출</div>
     <div class="done-sub">진행자가 결과를 공개하면<br>화면이 자동으로 바뀝니다.</div>
   </div>
@@ -337,7 +361,7 @@ body {
 
 <script>
 const WS_PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL = `${WS_PROTOCOL}//${location.host}?role=participant`;
+const WS_URL = `${WS_PROTOCOL}//${location.host}?quiz=disability&role=participant`;
 
 let ws, allQuizzes = [], myAnswers = {}, hasSubmitted = false;
 
@@ -378,6 +402,7 @@ function handleMsg(msg) {
       break;
     case 'submitConfirmed':
       hasSubmitted = true;
+      showMyScore(msg.score, msg.scoreMax);
       showScreen('done');
       break;
     case 'submissionUpdate':
@@ -531,6 +556,18 @@ function submitAll() {
     return;
   }
   ws.send(JSON.stringify({ type: 'submitAll', answers: myAnswers }));
+}
+
+function showMyScore(score, scoreMax) {
+  if (score == null || scoreMax == null) return;
+  const pct = Math.round(score / scoreMax * 100);
+  document.getElementById('myScoreNum').textContent = score;
+  document.getElementById('myScoreMax').textContent = `/ ${scoreMax}점`;
+  document.getElementById('myScorePct').textContent = `정답률 ${pct}%`;
+  document.getElementById('myScoreCard').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('myScoreBar').style.width = pct + '%';
+  }, 150);
 }
 
 // ── 결과 화면 ──

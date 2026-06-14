@@ -226,6 +226,45 @@ body {
 .subj-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
 .subj-item { background: var(--surface2); border-radius: 8px; padding: 9px 14px; font-size: 13px; }
 
+/* 개별 점수 패널 */
+.scores-card {
+  background: var(--surface); border-radius: 16px; padding: 22px;
+}
+.scores-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+}
+.scores-title { font-size: 15px; font-weight: 800; }
+.avg-badge {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border-radius: 10px; padding: 8px 18px;
+  font-size: 14px; font-weight: 800; color: white;
+  display: flex; align-items: center; gap: 8px;
+}
+.avg-num { font-size: 22px; font-weight: 900; }
+.scores-table {
+  width: 100%; border-collapse: collapse;
+}
+.scores-table th {
+  font-size: 11px; font-weight: 700; color: var(--muted); text-align: left;
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.scores-table td {
+  padding: 9px 10px; font-size: 14px; border-bottom: 1px solid var(--surface2);
+}
+.scores-table tr:last-child td { border-bottom: none; }
+.score-rank { font-weight: 800; color: var(--muted); font-size: 13px; }
+.score-name { font-weight: 700; }
+.score-val { font-weight: 900; }
+.score-val.high { color: #34d399; }
+.score-val.mid  { color: #fbbf24; }
+.score-val.low  { color: #f87171; }
+.score-bar-cell { width: 120px; }
+.score-mini-bg { height: 6px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.score-mini-fill { height: 100%; border-radius: 999px; background: var(--primary); transition: width .6s cubic-bezier(.4,0,.2,1); }
+.scores-empty { text-align: center; padding: 28px; color: var(--muted); font-size: 14px; }
+
 .empty-state { background: var(--surface); border-radius: 16px; padding: 60px 24px; text-align: center; }
 .empty-icon { font-size: 52px; margin-bottom: 16px; }
 .empty-text { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
@@ -258,9 +297,13 @@ body {
     <div class="qr-panel">
       <div class="qr-box"><img id="qrImg" src="" alt="QR" width="130" height="130"></div>
       <div class="qr-info">
-        <h3>📱 참여자 접속 안내</h3>
-        <div class="qr-url" id="participantUrl">URL 로딩 중...</div>
-        <div class="qr-desc">QR 코드를 스캔하거나 위 주소로 접속하면<br>퀴즈에 참여할 수 있습니다.<br>익명 참여 · 개인정보 수집 없음</div>
+        <h3>📱 교육생 접속용 QR / URL</h3>
+        <div class="qr-url" id="participantUrl" style="font-size:13px;word-break:break-all;">URL 로딩 중...</div>
+        <div class="qr-desc" style="margin-top:6px;">QR 스캔 또는 위 URL → 교육생 문제 화면<br>익명 참여 · 개인정보 수집 없음</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #334155;">
+          <div style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:4px;">🖥️ 관리자 화면 URL (이 화면 주소)</div>
+          <div id="adminUrl" style="font-size:11px;color:#818cf8;background:#1e293b;padding:6px 10px;border-radius:6px;word-break:break-all;font-family:monospace;">로딩 중...</div>
+        </div>
       </div>
     </div>
 
@@ -280,14 +323,38 @@ body {
         <div class="empty-sub">"퀴즈 시작" 버튼을 누르면 참여자 화면에 15문제가 한번에 표시됩니다.</div>
       </div>
     </div>
+
+    <!-- 개별 점수 패널 (항상 표시, 제출자 생기면 채워짐) -->
+    <div class="scores-card" id="scoresPanel" style="display:none">
+      <div class="scores-header">
+        <div class="scores-title">📋 참여자 개별 점수</div>
+        <div class="avg-badge">
+          평균 <span class="avg-num" id="avgScore">-</span>점
+          <span style="font-size:12px;opacity:.75" id="avgScoreMax">/ 12점</span>
+        </div>
+      </div>
+      <table class="scores-table">
+        <thead>
+          <tr>
+            <th style="width:36px">순위</th>
+            <th>이름</th>
+            <th style="width:80px">점수</th>
+            <th class="score-bar-cell">그래프</th>
+          </tr>
+        </thead>
+        <tbody id="scoresBody">
+          <tr><td colspan="4" class="scores-empty">아직 제출한 참여자가 없습니다</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 <script>
 const WS_PROTOCOL = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const WS_URL = `${WS_PROTOCOL}//${location.host}?role=admin`;
+const WS_URL = `${WS_PROTOCOL}//${location.host}?quiz=disability&role=admin`;
 
-let ws, allQuizzes = [], phase = 'waiting', discussingIdx = -1, summaryItems = [];
+let ws, allQuizzes = [], phase = 'waiting', discussingIdx = -1, summaryItems = [], scoreMax = 12;
 
 // ── WebSocket ──
 function connect() {
@@ -303,6 +370,7 @@ function handleMsg(msg) {
       allQuizzes = msg.quizzes || [];
       phase = msg.phase;
       discussingIdx = msg.discussingIndex ?? -1;
+      scoreMax = msg.scoreMax || 12;
       document.getElementById('pCount').textContent = msg.participantCount || 0;
       document.getElementById('sCount').textContent = msg.submissionCount || 0;
       renderSidebar();
@@ -313,6 +381,7 @@ function handleMsg(msg) {
         if (msg.summaryData) renderResultsGrid(msg.summaryData);
         if (phase === 'discussing' && discussingIdx >= 0) renderDiscuss(discussingIdx);
       }
+      renderScoresPanel(msg.scores || [], msg.avgScore, msg.scoreMax || 12);
       break;
     case 'quizStarted':
       phase = 'quiz';
@@ -323,6 +392,7 @@ function handleMsg(msg) {
     case 'submissionUpdate':
       document.getElementById('sCount').textContent = msg.count;
       updateSubmissionCard(msg.count, msg.total);
+      renderScoresPanel(msg.scores || [], msg.avgScore, scoreMax);
       break;
     case 'showResults':
       phase = 'results';
@@ -347,6 +417,7 @@ function handleMsg(msg) {
       updatePhaseUI();
       renderSidebar();
       renderEmpty();
+      renderScoresPanel([], null, scoreMax);
       break;
     case 'participantCount':
       document.getElementById('pCount').textContent = msg.count;
@@ -606,6 +677,50 @@ function renderDiscuss(idx) {
   });
 }
 
+// ── 개별 점수 패널 ──
+function renderScoresPanel(scores, avg, max) {
+  const panel = document.getElementById('scoresPanel');
+  const body = document.getElementById('scoresBody');
+  const avgEl = document.getElementById('avgScore');
+  const avgMaxEl = document.getElementById('avgScoreMax');
+
+  panel.style.display = 'block';
+  avgMaxEl.textContent = `/ ${max || 12}점`;
+
+  if (avg != null) {
+    avgEl.textContent = avg;
+  } else {
+    avgEl.textContent = '-';
+  }
+
+  if (!scores || scores.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="scores-empty">아직 제출한 참여자가 없습니다</td></tr>';
+    return;
+  }
+
+  // 점수 내림차순 정렬
+  const sorted = [...scores].sort((a, b) => b.score - a.score);
+  body.innerHTML = sorted.map((s, i) => {
+    const pct = Math.round(s.score / (s.scoreMax || max || 12) * 100);
+    const valCls = pct >= 70 ? 'high' : pct >= 40 ? 'mid' : 'low';
+    return `
+      <tr>
+        <td class="score-rank">${i + 1}</td>
+        <td class="score-name">${escHtml(s.name)}</td>
+        <td><span class="score-val ${valCls}">${s.score}</span><span style="font-size:12px;color:var(--muted)"> / ${s.scoreMax || max}</span></td>
+        <td class="score-bar-cell">
+          <div class="score-mini-bg">
+            <div class="score-mini-fill" style="width:${pct}%"></div>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 // ── 컨트롤 ──
 function startQuiz() {
   ws.send(JSON.stringify({ type: 'startQuiz' }));
@@ -623,9 +738,20 @@ function resetQuiz() {
 
 // ── QR/URL ──
 async function loadURL() {
-  const url = location.origin;
-  document.getElementById('participantUrl').textContent = url;
-  document.getElementById('qrImg').src = `/qr.svg?url=${encodeURIComponent(url)}`;
+  try {
+    const data = await fetch('/api/publicurl').then(r => r.json());
+    const base = data.url.replace(/\/$/, '');
+    const participantUrl = base + '/';
+    const adminUrl = base + '/admin.html';
+    document.getElementById('participantUrl').textContent = participantUrl;
+    document.getElementById('qrImg').src = `/qr.svg?url=${encodeURIComponent(participantUrl)}`;
+    document.getElementById('adminUrl').textContent = adminUrl;
+  } catch {
+    const base = location.origin;
+    document.getElementById('participantUrl').textContent = base + '/';
+    document.getElementById('qrImg').src = `/qr.svg?url=${encodeURIComponent(base + '/')}`;
+    document.getElementById('adminUrl').textContent = base + '/admin.html';
+  }
 }
 
 connect();
